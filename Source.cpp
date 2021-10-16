@@ -15,67 +15,73 @@ using namespace std;
 int main()
 {
 	/*1*/
-	setlocale(LC_ALL, "Russian");
 	DWORD nHigh = 0;
 	DWORD nLow = 32767;
-	HANDLE current_descriptor;
-	char mf_name[MAX_KEY_LENGTH];
+	HANDLE current_descriptor = INVALID_HANDLE_VALUE;
+	char mf_name[MAX_PATH];
 	LPVOID memory;
 	wcout << "Enter the shared memory field' name: ";
 	cin >> mf_name;
 	cout << endl;
-	LPCSTR mf_pointer = &mf_name[MAX_KEY_LENGTH];
 
 	/*2*/
-	OpenFileMappingA(NULL, FALSE, mf_pointer);
+	OpenFileMappingA(NULL, FALSE, &mf_name[0]);
 	DWORD err = GetLastError();
-	cout << "Error # " << err;
 	cout << endl;
 
-	if (err == 2)
+	if (err != ERROR_FILE_EXISTS)
 	{
-		current_descriptor = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, nHigh, nLow, mf_pointer);
+		current_descriptor = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, nLow, &mf_name[0]);
 	}
 	else
 	{
-		current_descriptor = OpenFileMappingA(NULL, FALSE, mf_pointer);
+		current_descriptor = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, &mf_name[0]);
 	}
 	/*3*/
-	memory = MapViewOfFile(current_descriptor, FILE_MAP_ALL_ACCESS, 0, 0, nLow);
-	/*4*/
-	int indicator;
-	int a = 0;
-	do
+	if (current_descriptor != NULL)
+
 	{
-		cout << "Enter 1 for writing, 2 for reading, 3 for exit: ";
-		cin >> indicator;
-		cout << endl;
-		if (indicator == 1)
+		memory = MapViewOfFile(current_descriptor, FILE_MAP_ALL_ACCESS, 0, 0, nLow);
+		/*4*/
+		int indicator;
+		int a = 0;
+		do
 		{
-			auto message = reinterpret_cast<char*>(memory);
-			cout << "Enter the message: ";
-			char input[128];
-			cin >> input;
-			fgets(input, sizeof(input), stdin);
-			strcpy(message, input);
-		}
-		else if (indicator == 2)
-		{
-			printf("Message from shared memory: %s\n", memory);
+			cout << "Enter 1 for writing, 2 for reading, 3 for exit: ";
+			cin >> indicator;
 			cout << endl;
-		}
-		else if (indicator == 3)
-		{
-			cout << "Exited" << endl;
-			a = 1;
-		}
-		else
-		{
-			cout << "Error:Unrecognized identificator value" << endl;
-		}
-	} 
-	while ( a == 0);
-	UnmapViewOfFile(memory);
-	CloseHandle(current_descriptor);
-	return(0);
+			if (indicator == 1)
+			{
+				auto message = reinterpret_cast<char*>(memory);
+				cout << "Enter the message: ";
+				char input[128];
+				cin >> input;
+				strcpy(message, input);
+			}
+			else if (indicator == 2)
+			{
+				printf("Message from shared memory: %s\n", memory);
+				cout << endl;
+			}
+			else if (indicator == 3)
+			{
+				cout << "Exited" << endl;
+				a = 1;
+			}
+			else
+			{
+				cout << "Error:Unrecognized identificator value" << endl;
+				a = 1;
+			}
+		} while (a == 0);
+		UnmapViewOfFile(memory);
+		CloseHandle(current_descriptor);
+		return(0);
+	}
+	else
+	{
+		printf("Could not create file mapping object (%d).\n"),
+			GetLastError();
+		return 1;
+	}
 }
